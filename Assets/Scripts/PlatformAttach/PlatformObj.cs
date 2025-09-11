@@ -12,7 +12,7 @@ public class PlatformObj : MonoBehaviour
     }
 
     [Header("Detection Settings")]
-    [SerializeField] private Vector3 detectPosition = Vector3.zero; 
+    [SerializeField] private Vector3 detectPosition = Vector3.zero;
     [SerializeField] private DetectionShape detectionShape = DetectionShape.Box;
     [SerializeField] private Vector3 boxSize = Vector3.one;
     [SerializeField] private float sphereRadius = 0.5f;
@@ -23,74 +23,75 @@ public class PlatformObj : MonoBehaviour
     [Header("Gizmos Settings")]
     [SerializeField] private Color gizmoColor = new Color(0f, 1f, 0f, 0.25f);
 
-    private HashSet<Transform> trackedObjects = new HashSet<Transform>();
+    private List<Rigidbody> trackedRigidbodies = new List<Rigidbody>();
+    private Vector3 lastPosition;
+
+    private void Start()
+    {
+        lastPosition = transform.position;
+    }
 
     private void Update()
     {
-        DetectAndParent();
+        DetectAndMoveRigidbodies();
+        MoveTrackedRigidbodies();
+        lastPosition = transform.position;
     }
 
-    private void DetectAndParent()
+    private void DetectAndMoveRigidbodies()
     {
-        Collider[] hits = new Collider[20]; // รองรับสูงสุด 20 object
-        int count = 0;
+        Collider[] detectedColliders = null;
+        Vector3 worldPos = transform.position + detectPosition;
 
         switch (detectionShape)
         {
             case DetectionShape.Box:
-                count = Physics.OverlapBoxNonAlloc(transform.TransformPoint(detectPosition), boxSize * 0.5f, hits, transform.rotation);
+                detectedColliders = Physics.OverlapBox(worldPos, boxSize * 0.5f, transform.rotation);
                 break;
             case DetectionShape.Sphere:
-                count = Physics.OverlapSphereNonAlloc(transform.TransformPoint(detectPosition), sphereRadius, hits);
+                detectedColliders = Physics.OverlapSphere(worldPos, sphereRadius);
                 break;
             case DetectionShape.Capsule:
-                Vector3 up = transform.TransformPoint(detectPosition) + transform.up * Mathf.Max(0, (capsuleHeight * 0.5f) - capsuleRadius);
-                Vector3 down = transform.TransformPoint(detectPosition) - transform.up * Mathf.Max(0, (capsuleHeight * 0.5f) - capsuleRadius);
-                count = Physics.OverlapCapsuleNonAlloc(up, down, capsuleRadius, hits);
+                Vector3 point1 = worldPos + Vector3.up * Mathf.Max(0, (capsuleHeight * 0.5f) - capsuleRadius);
+                Vector3 point2 = worldPos - Vector3.up * Mathf.Max(0, (capsuleHeight * 0.5f) - capsuleRadius);
+                detectedColliders = Physics.OverlapCapsule(point1, point2, capsuleRadius);
                 break;
             case DetectionShape.Mesh:
-                if (meshPreview != null)
-                {
-                    Bounds bounds = meshPreview.bounds;
-                    count = Physics.OverlapBoxNonAlloc(transform.TransformPoint(detectPosition + bounds.center), bounds.extents, hits, transform.rotation);
-                }
+                detectedColliders = new Collider[0]; // Mesh Detection ชั่วคราว
                 break;
         }
 
-        HashSet<Transform> currentDetected = new HashSet<Transform>();
-
-        for (int i = 0; i < count; i++)
+        // Remove rigidbodies ที่ออกจาก Detection
+        for (int i = trackedRigidbodies.Count - 1; i >= 0; i--)
         {
-            if (hits[i] != null)
+            if (detectedColliders == null || !System.Array.Exists(detectedColliders, col => col.attachedRigidbody == trackedRigidbodies[i]))
             {
-                PlatformDetection pd = hits[i].GetComponent<PlatformDetection>();
-                if (pd != null)
-                {
-                    currentDetected.Add(pd.transform);
-                    if (!trackedObjects.Contains(pd.transform))
-                    {
-                        // ใส่ Parent ให้ติดตาม
-                        pd.transform.SetParent(transform);
-                        trackedObjects.Add(pd.transform);
-                    }
-                }
+                trackedRigidbodies.RemoveAt(i);
             }
         }
 
-        // ตรวจสอบ Object ที่ออกจาก Detection แล้ว
-        HashSet<Transform> toRemove = new HashSet<Transform>();
-        foreach (var obj in trackedObjects)
+        if (detectedColliders == null) return;
+
+        // Add rigidbodies ใหม่ที่เข้ามาใน Detection
+        foreach (var col in detectedColliders)
         {
-            if (!currentDetected.Contains(obj))
+            Rigidbody rb = col.attachedRigidbody;
+            if (rb != null && !trackedRigidbodies.Contains(rb))
             {
-                obj.SetParent(null); // ปลด Parent
-                toRemove.Add(obj);
+                trackedRigidbodies.Add(rb);
             }
         }
+    }
 
-        foreach (var obj in toRemove)
+    private void MoveTrackedRigidbodies()
+    {
+        Vector3 delta = transform.position - lastPosition;
+        if (delta == Vector3.zero) return;
+
+        foreach (var rb in trackedRigidbodies)
         {
-            trackedObjects.Remove(obj);
+            // MovePosition ทำให้ Rigidbody เคลื่อนที่ตาม PlatformObj
+            rb.MovePosition(rb.position + delta);
         }
     }
 

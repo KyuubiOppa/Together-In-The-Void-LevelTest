@@ -674,7 +674,7 @@ GameObject:
   - component: {fileID: 607794682}
   - component: {fileID: 607794681}
   m_Layer: 6
-  m_Name: FreeezeAble (1)
+  m_Name: Platform / FreeezeAble
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -800,9 +800,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 64dbb22051fceb046b4c89d94adb9476, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  detectPosition: {x: 0, y: 0.29, z: 0}
+  detectPosition: {x: 0, y: 0.26, z: 0}
   detectionShape: 0
-  boxSize: {x: 1.71, y: 0.3, z: 1.77}
+  boxSize: {x: 1.65, y: 0.24, z: 1.65}
   sphereRadius: 0.5
   capsuleRadius: 0.5
   capsuleHeight: 3.21
@@ -1236,7 +1236,7 @@ GameObject:
   - component: {fileID: 1400579278}
   - component: {fileID: 1400579277}
   m_Layer: 6
-  m_Name: FreeezeAble
+  m_Name: Platform / FreeezeAble
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1362,9 +1362,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 64dbb22051fceb046b4c89d94adb9476, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  detectPosition: {x: 0, y: 0.29, z: 0}
+  detectPosition: {x: 0, y: 0.26, z: 0}
   detectionShape: 0
-  boxSize: {x: 1.71, y: 0.3, z: 1.77}
+  boxSize: {x: 1.65, y: 0.24, z: 1.65}
   sphereRadius: 0.5
   capsuleRadius: 0.5
   capsuleHeight: 3.21

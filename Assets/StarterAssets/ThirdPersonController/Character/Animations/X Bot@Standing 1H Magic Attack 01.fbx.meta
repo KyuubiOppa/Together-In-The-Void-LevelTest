@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: d09053d12615efc47b88e3fc52ba6e14
+guid: 97678c3d90d746641a091e4c7eb63e8d
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
@@ -497,23 +497,23 @@ ModelImporter:
         length: 0
         modified: 0
     skeleton:
-    - name: X Bot@Standing 1H Magic Attack 02(Clone)
+    - name: X Bot@Standing 1H Magic Attack 01(Clone)
       parentName: 
       position: {x: 0, y: 0, z: 0}
       rotation: {x: 0, y: 0, z: 0, w: 1}
       scale: {x: 1, y: 1, z: 1}
     - name: Beta_Surface
-      parentName: X Bot@Standing 1H Magic Attack 02(Clone)
+      parentName: X Bot@Standing 1H Magic Attack 01(Clone)
       position: {x: -0, y: 0, z: 0}
       rotation: {x: 0, y: -0, z: -0, w: 1}
       scale: {x: 1, y: 1, z: 1}
     - name: Beta_Joints
-      parentName: X Bot@Standing 1H Magic Attack 02(Clone)
+      parentName: X Bot@Standing 1H Magic Attack 01(Clone)
       position: {x: -0, y: 0, z: 0}
       rotation: {x: 0, y: -0, z: -0, w: 1}
       scale: {x: 1, y: 1, z: 1}
     - name: mixamorig:Hips
-      parentName: X Bot@Standing 1H Magic Attack 02(Clone)
+      parentName: X Bot@Standing 1H Magic Attack 01(Clone)
       position: {x: 0.000000026077032, y: 1.0719986, z: 0.0076700095}
       rotation: {x: 0.006458362, y: -0.0000000015976862, z: -0.0000002473774, w: 0.99997914}
       scale: {x: 1, y: 1, z: 1}

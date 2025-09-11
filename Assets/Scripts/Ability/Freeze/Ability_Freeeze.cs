@@ -13,6 +13,7 @@ public class Ability_Freeeze : MonoBehaviour
     [SerializeField] CinemachineVirtualCamera vcam;  
     [SerializeField] private Canvas crosshairCanvas;
     [SerializeField] private Camera playerCamera;
+    [SerializeField] private Animator animator;
     
     [Header("Aim Settings")]
     [SerializeField] private float aimMaxDistance = 25f;
@@ -22,7 +23,11 @@ public class Ability_Freeeze : MonoBehaviour
     [Header("Raycast Settings")]
     [SerializeField] private LayerMask freezeableLayerMask = -1;
     [SerializeField] private bool showDebugRay = true; // แสดง Debug Ray ใน Scene View
-
+    [Header("Animator Freeze Layer")]
+    [SerializeField] private string freezeLayerName = "FreezeAbility"; 
+    [SerializeField] private float freezeLayerLerpSpeed = 5f;
+    private int freezeLayerIndex;
+private float targetFreezeWeight = 0f;
     private Cinemachine3rdPersonFollow thirdPersonFollow;
     private Vector3 originalShoulderOffset;
     private bool isAiming = false;
@@ -44,7 +49,7 @@ public class Ability_Freeeze : MonoBehaviour
         }
 #endif
         if (crosshairCanvas) crosshairCanvas.gameObject.SetActive(false);
-        
+
         // Get the 3rd Person Follow component from vcam
         if (vcam != null)
         {
@@ -56,12 +61,21 @@ public class Ability_Freeeze : MonoBehaviour
         }
         if (playerCamera == null)
             playerCamera = Camera.main;
+            
+        freezeLayerIndex = animator.GetLayerIndex(freezeLayerName);
     }
 
     void Update()
     {
         HandleAiming();
         UpdateAimTarget();
+
+        if (animator != null && freezeLayerIndex >= 0)
+        {
+            float currentWeight = animator.GetLayerWeight(freezeLayerIndex);
+            float newWeight = Mathf.Lerp(currentWeight, targetFreezeWeight, Time.deltaTime * freezeLayerLerpSpeed);
+            animator.SetLayerWeight(freezeLayerIndex, newWeight);
+        }
     }
 
 #region Methods คลิกซ้าย
@@ -72,6 +86,7 @@ public class Ability_Freeeze : MonoBehaviour
     {
         if (found_FreezeAbleObj != null && isAiming)
         {
+            StartMagic();
             // ตรวจสอบสถานะปัจจุบันและสลับ
             if (found_FreezeAbleObj.freezeAbleState == FreezeAbleState.Normal)
             {
@@ -85,9 +100,15 @@ public class Ability_Freeeze : MonoBehaviour
             }
         }
     }
+    
+    void StartMagic()
+    {
+        animator.SetLayerWeight(freezeLayerIndex, 1f);
+        animator.SetTrigger("Freeze");
+    }
 #endregion
 
-#region Methods คลิกขวา
+    #region Methods คลิกขวา
     void HandleAiming()
     {
 #if ENABLE_INPUT_SYSTEM
@@ -115,26 +136,30 @@ public class Ability_Freeeze : MonoBehaviour
         }
 #endif
     }
-    
+
     void StartAiming()
     {
         // เปิด Crosshair
-        if (crosshairCanvas) 
+        if (crosshairCanvas)
             crosshairCanvas.gameObject.SetActive(true);
+            
+        targetFreezeWeight = 1f;
     }
-    
+
     void StopAiming()
     {
         // ปิด Crosshair
-        if (crosshairCanvas) 
+        if (crosshairCanvas)
             crosshairCanvas.gameObject.SetActive(false);
-        
+
         if (currentTargetedObj != null)
         {
             ToggleObjectHighlight(currentTargetedObj, false);
             currentTargetedObj = null;
             found_FreezeAbleObj = null;
         }
+        
+        targetFreezeWeight = 0f;
     }
     
     void UpdateAimTarget()

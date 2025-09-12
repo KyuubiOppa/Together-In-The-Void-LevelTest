@@ -78,6 +78,7 @@ public class FreezeAble_PlatformMoveAxis : FreezeAble
 
     private void OnEnable()
     {
+        DOTween.Kill(this);
         if (freezeAbleState == FreezeAbleState.Normal)
         {
             DOVirtual.DelayedCall(0.1f, () =>

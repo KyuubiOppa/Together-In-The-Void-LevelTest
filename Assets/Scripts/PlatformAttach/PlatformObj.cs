@@ -23,7 +23,7 @@ public class PlatformObj : MonoBehaviour
     [Header("Gizmos Settings")]
     [SerializeField] private Color gizmoColor = new Color(0f, 1f, 0f, 0.25f);
 
-    private List<Rigidbody> trackedRigidbodies = new List<Rigidbody>();
+    [SerializeField] private List<Rigidbody> trackedRigidbodies = new List<Rigidbody>();
     private Vector3 lastPosition;
 
     private void Start()

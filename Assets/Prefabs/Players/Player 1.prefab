@@ -399,6 +399,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: PlayerArmature1
       objectReference: {fileID: 0}
+    - target: {fileID: 4416926081852918481, guid: 64dce48905ffd9b4293e595fa6941544, type: 3}
+      propertyPath: m_Layer
+      value: 7
+      objectReference: {fileID: 0}
     - target: {fileID: 6982812146204527121, guid: 64dce48905ffd9b4293e595fa6941544, type: 3}
       propertyPath: m_Avatar
       value: 
@@ -458,3 +462,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 982c3ab7eec856347b43e41f3728151e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  respawnPointPlayer: {fileID: 0}

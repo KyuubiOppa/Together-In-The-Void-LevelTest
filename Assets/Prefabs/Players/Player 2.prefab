@@ -271,6 +271,10 @@ PrefabInstance:
       propertyPath: m_Avatar
       value: 
       objectReference: {fileID: 9000000, guid: 061261608236cc444a1bc32805949d65, type: 3}
+    - target: {fileID: 6982812146204527121, guid: 64dce48905ffd9b4293e595fa6941544, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: 8582c37d9fbef064ab77d8be9d024f79, type: 2}
     - target: {fileID: 8187455079231382173, guid: 64dce48905ffd9b4293e595fa6941544, type: 3}
       propertyPath: m_IsActive
       value: 0
@@ -321,6 +325,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 982c3ab7eec856347b43e41f3728151e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  respawnPointPlayer: {fileID: 0}
 --- !u!4 &8752761856190956869 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3893294197879345259, guid: 64dce48905ffd9b4293e595fa6941544, type: 3}

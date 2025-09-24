@@ -38,11 +38,11 @@ MonoBehaviour:
     backgroundColor: {r: 0.5903926, g: 0.12967247, b: 0.8867924, a: 1}
     textAlignment: 4
     fontStyle: 0
-  - keyChar: $
-    textColor: {r: 1, g: 1, b: 1, a: 1}
-    backgroundColor: {r: 0.5903926, g: 0.12967247, b: 0.8867924, a: 1}
+  - keyChar: $$
+    textColor: {r: 0, g: 0, b: 0, a: 1}
+    backgroundColor: {r: 0.19215687, g: 0.83137256, b: 0.7882353, a: 1}
     textAlignment: 4
-    fontStyle: 0
+    fontStyle: 1
   - keyChar: ==
     textColor: {r: 1, g: 1, b: 1, a: 1}
     backgroundColor: {r: 0.764151, g: 0.36704293, b: 0.24150053, a: 1}

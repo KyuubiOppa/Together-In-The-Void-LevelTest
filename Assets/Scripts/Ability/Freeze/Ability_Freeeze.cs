@@ -1,13 +1,14 @@
 using Cinemachine;
 using UnityEngine;
+using Unity.Netcode;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
 #endif
 
-public class Ability_Freeeze : MonoBehaviour
+public class Ability_Freeeze : NetworkBehaviour
 {
     [Header("Debug")]
-    [SerializeField] private FreezeAble found_FreezeAbleObj; // FreezeAble ที่เจอ
+    [SerializeField] private FreezeAble found_FreezeAbleObj;
     
     [Header("Refs")]
     [SerializeField] CinemachineVirtualCamera vcam;  
@@ -22,7 +23,7 @@ public class Ability_Freeeze : MonoBehaviour
     
     [Header("Raycast Settings")]
     [SerializeField] private LayerMask freezeableLayerMask = -1;
-    [SerializeField] private bool showDebugRay = true; // แสดง Debug Ray ใน Scene View
+    [SerializeField] private bool showDebugRay = true;
     [Header("Animator Freeze Layer")]
     [SerializeField] private string freezeLayerName = "FreezeAbility"; 
     [SerializeField] private float freezeLayerLerpSpeed = 5f;
@@ -44,13 +45,12 @@ public class Ability_Freeeze : MonoBehaviour
         var pi = GetComponent<PlayerInput>();
         if (pi)
         {
-            aimAction = pi.actions["Aim"];   // Input Action สำหรับ Right Mouse (Hold)
-            fireAction = pi.actions["Fire"];  // Input Action สำหรับ Left Mouse (Press)
+            aimAction = pi.actions["Aim"];
+            fireAction = pi.actions["Fire"];
         }
 #endif
         if (crosshairCanvas) crosshairCanvas.gameObject.SetActive(false);
 
-        // Get the 3rd Person Follow component from vcam
         if (vcam != null)
         {
             thirdPersonFollow = vcam.GetCinemachineComponent<Cinemachine3rdPersonFollow>();
@@ -67,6 +67,8 @@ public class Ability_Freeeze : MonoBehaviour
 
     void Update()
     {
+        if (!IsOwner) return; // เฉพาะ Owner เท่านั้น
+        
         HandleAiming();
         UpdateAimTarget();
 
@@ -78,39 +80,53 @@ public class Ability_Freeeze : MonoBehaviour
         }
     }
 
-#region Methods คลิกซ้าย
-    /// <summary>
-    /// แช่/หยุดแช่ 
-    /// </summary>
+    #region Network Freeze Methods
     public void FireFreeze()
     {
+        if (!IsOwner) return;
+        
         if (found_FreezeAbleObj != null && isAiming)
         {
             StartMagic();
-            // ตรวจสอบสถานะปัจจุบันและสลับ
-            if (found_FreezeAbleObj.freezeAbleState == FreezeAbleState.Normal)
-            {
-                found_FreezeAbleObj.OnFreeze();
-                found_FreezeAbleObj.freezeAbleState = FreezeAbleState.Freezing;
-            }
-            else if (found_FreezeAbleObj.freezeAbleState == FreezeAbleState.Freezing)
-            {
-                found_FreezeAbleObj.StopFreeze();
-                found_FreezeAbleObj.freezeAbleState = FreezeAbleState.Normal;
-            }
+            
+            // ส่งคำสั่งไป Server
+            ulong targetNetworkId = found_FreezeAbleObj.GetComponent<NetworkObject>().NetworkObjectId;
+            RequestFreezeServerRpc(targetNetworkId);
         }
     }
     
+    [ServerRpc]
+    void RequestFreezeServerRpc(ulong targetNetworkId)
+    {
+        if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(targetNetworkId, out NetworkObject networkObj))
+        {
+            FreezeAble freezeAbleObj = networkObj.GetComponent<FreezeAble>();
+            if (freezeAbleObj != null)
+            {
+                if (freezeAbleObj.freezeAbleState == FreezeAbleState.Normal)
+                {
+                    freezeAbleObj.NetworkFreeze();
+                }
+                else if (freezeAbleObj.freezeAbleState == FreezeAbleState.Freezing)
+                {
+                    freezeAbleObj.NetworkUnfreeze();
+                }
+            }
+        }
+    }
+    #endregion
+
     void StartMagic()
     {
         animator.SetLayerWeight(freezeLayerIndex, 1f);
         animator.SetTrigger("Freeze");
     }
-#endregion
 
-    #region Methods คลิกขวา
+    #region Aiming Methods
     void HandleAiming()
     {
+        if (!IsOwner) return;
+        
 #if ENABLE_INPUT_SYSTEM
         if (aimAction != null)
         {
@@ -123,7 +139,7 @@ public class Ability_Freeeze : MonoBehaviour
                 else
                     StopAiming();
             }
-            // ปรับ Offset กล้อง
+            
             if (thirdPersonFollow != null)
             {
                 Vector3 targetOffset = isAiming ? shoulderOffsetWhenAiming : originalShoulderOffset;
@@ -139,7 +155,6 @@ public class Ability_Freeeze : MonoBehaviour
 
     void StartAiming()
     {
-        // เปิด Crosshair
         if (crosshairCanvas)
             crosshairCanvas.gameObject.SetActive(true);
             
@@ -148,7 +163,6 @@ public class Ability_Freeeze : MonoBehaviour
 
     void StopAiming()
     {
-        // ปิด Crosshair
         if (crosshairCanvas)
             crosshairCanvas.gameObject.SetActive(false);
 
@@ -167,40 +181,36 @@ public class Ability_Freeeze : MonoBehaviour
         if (!isAiming || playerCamera == null) 
             return;
 
-        // สร้าง Ray จากจุดกลางหน้าจอ
         Vector3 screenCenter = new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f);
         Ray ray = playerCamera.ScreenPointToRay(screenCenter);
         
-        // แสดง Debug Ray ใน Scene View
         if (showDebugRay)
             Debug.DrawRay(ray.origin, ray.direction * aimMaxDistance, Color.red, 0.1f);
         
         RaycastHit hit;
         FreezeAble detectedFreezeAble = null;
-        // Raycast หา FreezeAble objects
+        
         if (Physics.Raycast(ray, out hit, aimMaxDistance, freezeableLayerMask))
         {
             detectedFreezeAble = hit.collider.GetComponent<FreezeAble>();
             if (detectedFreezeAble == null)
                 detectedFreezeAble = hit.collider.GetComponentInParent<FreezeAble>();
         }
-        // จัดการ Highlight
+        
         HandleTargetHighlight(detectedFreezeAble);
     }
-#endregion  
+    #endregion
 
-#region Show Highlight Obj
+    #region Highlight Methods
     void HandleTargetHighlight(FreezeAble newTarget)
     {
-        if (currentTargetedObj != newTarget) // ถ้า Target เปลี่ยน
+        if (currentTargetedObj != newTarget)
         {
-            // ปิด Highlight ของ Object ก่อนหน้าและเปิดของอันใหม่
             if (currentTargetedObj != null)
                 ToggleObjectHighlight(currentTargetedObj, false);
             if (newTarget != null)
                 ToggleObjectHighlight(newTarget, true);
             
-            // อัพเดท reference
             currentTargetedObj = newTarget;
             found_FreezeAbleObj = newTarget;
         }
@@ -210,7 +220,6 @@ public class Ability_Freeeze : MonoBehaviour
     {
         if (freezeAbleObj != null)
         {
-            // ดึง Material instance จาก Renderer
             Renderer objRenderer = freezeAbleObj.GetComponent<Renderer>();
             if (objRenderer != null && objRenderer.material != null)
             {
@@ -218,7 +227,7 @@ public class Ability_Freeeze : MonoBehaviour
             }
         }
     }
-#endregion
+    #endregion
     
     void OnEnable()
     {

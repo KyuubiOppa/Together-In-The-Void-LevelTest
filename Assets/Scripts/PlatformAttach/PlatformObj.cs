@@ -10,8 +10,10 @@ public class PlatformObj : MonoBehaviour
         Capsule,
         Mesh
     }
+    
     [Header("Pivot Settings")]
     [SerializeField] private Transform pivot;
+    
     [Header("Detection Settings")]
     [SerializeField] private Vector3 detectPosition = Vector3.zero;
     [SerializeField] private DetectionShape detectionShape = DetectionShape.Box;
@@ -21,20 +23,32 @@ public class PlatformObj : MonoBehaviour
     [SerializeField] private float capsuleHeight = 2f;
     [SerializeField] private Mesh meshPreview;
 
+    [Header("Performance Settings")]
+    [SerializeField] private float detectionInterval = 0.1f; // ตรวจจับทุก 0.1 วินาที
+    [SerializeField] private LayerMask detectionLayerMask = -1; // Layer ที่ต้องการตรวจจับ
+
     [Header("Gizmos Settings")]
     [SerializeField] private Color gizmoColor = new Color(0f, 1f, 0f, 0.25f);
 
     [SerializeField] private List<Rigidbody> trackedRigidbodies = new List<Rigidbody>();
     private Vector3 lastPosition;
+    private float lastDetectionTime;
 
     private void Start()
     {
         lastPosition = transform.position;
+        lastDetectionTime = Time.time;
     }
 
     private void Update()
     {
-        DetectAndMoveRigidbodies();
+        // ลดการตรวจจับเพื่อประสิทธิภาพ
+        if (Time.time - lastDetectionTime >= detectionInterval)
+        {
+            DetectAndMoveRigidbodies();
+            lastDetectionTime = Time.time;
+        }
+        
         MoveTrackedRigidbodies();
         lastPosition = transform.position;
     }
@@ -43,60 +57,111 @@ public class PlatformObj : MonoBehaviour
     {
         if (pivot == null) pivot = transform;
 
-        Collider[] detectedColliders = null;
+        Collider[] detectedColliders = GetDetectedColliders();
+        
+        // Remove rigidbodies ที่ออกจาก Detection
+        RemoveUntrackedRigidbodies(detectedColliders);
+        
+        // Add rigidbodies ใหม่ที่เข้ามาใน Detection
+        AddNewRigidbodies(detectedColliders);
+    }
+
+    private Collider[] GetDetectedColliders()
+    {
         Vector3 worldPos = transform.position + detectPosition;
         Quaternion worldRot = pivot.rotation;
 
         switch (detectionShape)
         {
             case DetectionShape.Box:
-                detectedColliders = Physics.OverlapBox(worldPos, boxSize * 0.5f, worldRot);
-                break;
+                return Physics.OverlapBox(worldPos, boxSize * 0.5f, worldRot, detectionLayerMask);
+            
             case DetectionShape.Sphere:
-                detectedColliders = Physics.OverlapSphere(worldPos, sphereRadius);
-                break;
+                return Physics.OverlapSphere(worldPos, sphereRadius, detectionLayerMask);
+            
             case DetectionShape.Capsule:
                 Vector3 point1 = worldPos + pivot.up * Mathf.Max(0, (capsuleHeight * 0.5f) - capsuleRadius);
                 Vector3 point2 = worldPos - pivot.up * Mathf.Max(0, (capsuleHeight * 0.5f) - capsuleRadius);
-                detectedColliders = Physics.OverlapCapsule(point1, point2, capsuleRadius);
-                break;
+                return Physics.OverlapCapsule(point1, point2, capsuleRadius, detectionLayerMask);
+            
             case DetectionShape.Mesh:
-                detectedColliders = new Collider[0];
-                break;
+                return new Collider[0]; // Mesh detection ไม่ support ใน built-in Physics
+            
+            default:
+                return new Collider[0];
         }
+    }
 
-        // Remove rigidbodies ที่ออกจาก Detection
+    private void RemoveUntrackedRigidbodies(Collider[] detectedColliders)
+    {
         for (int i = trackedRigidbodies.Count - 1; i >= 0; i--)
         {
-            if (detectedColliders == null || !System.Array.Exists(detectedColliders, col => col.attachedRigidbody == trackedRigidbodies[i]))
+            bool stillDetected = false;
+            if (detectedColliders != null)
+            {
+                foreach (var col in detectedColliders)
+                {
+                    if (col.attachedRigidbody == trackedRigidbodies[i])
+                    {
+                        stillDetected = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (!stillDetected)
             {
                 trackedRigidbodies.RemoveAt(i);
             }
         }
+    }
 
+    private void AddNewRigidbodies(Collider[] detectedColliders)
+    {
         if (detectedColliders == null) return;
 
-        // Add rigidbodies ใหม่ที่เข้ามาใน Detection
         foreach (var col in detectedColliders)
         {
             Rigidbody rb = col.attachedRigidbody;
             if (rb != null && !trackedRigidbodies.Contains(rb))
             {
-                trackedRigidbodies.Add(rb);
+                // เช็คว่าเป็น Player หรือ Object ที่ต้องการติดตาม
+                if (ShouldTrackRigidbody(rb))
+                {
+                    trackedRigidbodies.Add(rb);
+                }
             }
         }
+    }
+
+    private bool ShouldTrackRigidbody(Rigidbody rb)
+    {
+        // เพิ่มเงื่อนไขกรองที่นี่ เช่น:
+        // - ไม่ติดตาม Kinematic Rigidbodies
+        // - ไม่ติดตาม Objects ที่มี Tag ที่ไม่ต้องการ
+        
+        if (rb.isKinematic) return false;
+        if (rb.gameObject.CompareTag("NoTrack")) return false;
+        
+        return true;
     }
 
     private void MoveTrackedRigidbodies()
     {
         Vector3 delta = transform.position - lastPosition;
-        if (delta == Vector3.zero) return;
+        if (delta.sqrMagnitude < 0.0001f) return; // ใช้ sqrMagnitude เพื่อประสิทธิภาพ
 
         foreach (var rb in trackedRigidbodies)
         {
-            // MovePosition ทำให้ Rigidbody เคลื่อนที่ตาม PlatformObj
-            rb.MovePosition(rb.position + delta);
+            if (rb != null) // Safety check
+            {
+                // MovePosition ทำให้ Rigidbody เคลื่อนที่ตาม PlatformObj
+                rb.MovePosition(rb.position + delta);
+            }
         }
+        
+        // ทำความสะอาด null references
+        trackedRigidbodies.RemoveAll(rb => rb == null);
     }
 
     private void OnDrawGizmos()
@@ -135,5 +200,28 @@ public class PlatformObj : MonoBehaviour
                 }
                 break;
         }
+
+        Gizmos.matrix = Matrix4x4.identity;
+    }
+
+    // Debug Info
+    [Header("Debug Info (Runtime)")]
+    [SerializeField] private bool showDebugInfo = false;
+    
+    private void OnGUI()
+    {
+        if (!showDebugInfo) return;
+        
+        GUILayout.BeginArea(new Rect(10, 10, 300, 200));
+        GUILayout.Label($"Platform: {gameObject.name}");
+        GUILayout.Label($"Tracked Objects: {trackedRigidbodies.Count}");
+        
+        foreach (var rb in trackedRigidbodies)
+        {
+            if (rb != null)
+                GUILayout.Label($"- {rb.gameObject.name}");
+        }
+        
+        GUILayout.EndArea();
     }
 }

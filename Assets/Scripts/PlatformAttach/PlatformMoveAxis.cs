@@ -1,7 +1,9 @@
 using UnityEngine;
 using DG.Tweening;
+using Unity.Netcode;
+
 [RequireComponent(typeof(PlatformObj))]
-public class PlatformMoveAxis : MonoBehaviour
+public class PlatformMoveAxis : NetworkBehaviour
 {
     public enum Axis { X, Y, Z }
     public enum Direction { Positive, Negative }
@@ -17,6 +19,9 @@ public class PlatformMoveAxis : MonoBehaviour
     [Header("Debug")]
     [SerializeField] private bool showGizmos = true;
 
+    // Network synced position
+    private NetworkVariable<Vector3> networkPosition = new NetworkVariable<Vector3>();
+
     Vector3 startPosLocal, startPosWorld;
     Vector3 endPos;
     Sequence seq;
@@ -28,9 +33,39 @@ public class PlatformMoveAxis : MonoBehaviour
         RecalculateEnd();
     }
 
-    private void Start()
+    public override void OnNetworkSpawn()
     {
-        StartMoveLoop();
+        if (IsServer)
+        {
+            // Server เป็นผู้ควบคุมการเคลื่อนที่
+            StartMoveLoop();
+            networkPosition.Value = transform.position;
+        }
+        else
+        {
+            // Client ติดตามตำแหน่งจาก Server
+            networkPosition.OnValueChanged += OnNetworkPositionChanged;
+            // Set initial position
+            transform.position = networkPosition.Value;
+        }
+    }
+
+    void OnNetworkPositionChanged(Vector3 oldPos, Vector3 newPos)
+    {
+        // Smooth interpolation สำหรับ Client
+        if (!IsServer)
+        {
+            transform.DOMove(newPos, 0.1f).SetEase(Ease.Linear);
+        }
+    }
+
+    void Update()
+    {
+        // เฉพาะ Server ที่อัปเดตตำแหน่ง Network
+        if (IsServer && networkPosition.Value != transform.position)
+        {
+            networkPosition.Value = transform.position;
+        }
     }
 
     void RecalculateEnd()
@@ -48,8 +83,9 @@ public class PlatformMoveAxis : MonoBehaviour
 
     void StartMoveLoop()
     {
+        if (!IsServer) return; // เฉพาะ Server เท่านั้น
+
         seq?.Kill();
-        // สำคัญ: ผูก Id/Target ให้เป็น transform/gameObject
         seq = DOTween.Sequence()
              .SetId(gameObject)
              .SetTarget(transform)
@@ -65,12 +101,25 @@ public class PlatformMoveAxis : MonoBehaviour
         {
             transform.position = startPosWorld;
             seq.Append(transform.DOMove(endPos, moveDuration).SetEase(moveEase));
-            seq.Append(transform.DOMove(useLocalSpace ? startPosLocal : startPosWorld, moveDuration).SetEase(moveEase));
+            seq.Append(transform.DOMove(startPosWorld, moveDuration).SetEase(moveEase));
         }
     }
 
-    void OnDisable() { seq?.Kill(); }
-    void OnDestroy() { seq?.Kill(); }
+    public override void OnNetworkDespawn()
+    {
+        seq?.Kill();
+        networkPosition.OnValueChanged -= OnNetworkPositionChanged;
+    }
+
+    void OnDisable() 
+    { 
+        seq?.Kill(); 
+    }
+
+    void OnDestroy() 
+    { 
+        seq?.Kill(); 
+    }
 
     void OnValidate()
     {
@@ -88,8 +137,11 @@ public class PlatformMoveAxis : MonoBehaviour
             ? (Application.isPlaying ? startPosLocal : transform.localPosition)
             : (Application.isPlaying ? startPosWorld : transform.position);
 
-        Gizmos.color = Color.green; Gizmos.DrawLine(start, endPos);
-        Gizmos.color = Color.cyan; Gizmos.DrawWireSphere(start, 0.15f);
-        Gizmos.color = Color.red; Gizmos.DrawWireSphere(endPos, 0.15f);
+        Gizmos.color = Color.green; 
+        Gizmos.DrawLine(start, endPos);
+        Gizmos.color = Color.cyan; 
+        Gizmos.DrawWireSphere(start, 0.15f);
+        Gizmos.color = Color.red; 
+        Gizmos.DrawWireSphere(endPos, 0.15f);
     }
 }

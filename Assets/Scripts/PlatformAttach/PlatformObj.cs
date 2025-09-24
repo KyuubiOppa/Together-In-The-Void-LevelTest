@@ -10,7 +10,8 @@ public class PlatformObj : MonoBehaviour
         Capsule,
         Mesh
     }
-
+    [Header("Pivot Settings")]
+    [SerializeField] private Transform pivot;
     [Header("Detection Settings")]
     [SerializeField] private Vector3 detectPosition = Vector3.zero;
     [SerializeField] private DetectionShape detectionShape = DetectionShape.Box;
@@ -40,24 +41,27 @@ public class PlatformObj : MonoBehaviour
 
     private void DetectAndMoveRigidbodies()
     {
+        if (pivot == null) pivot = transform;
+
         Collider[] detectedColliders = null;
         Vector3 worldPos = transform.position + detectPosition;
+        Quaternion worldRot = pivot.rotation;
 
         switch (detectionShape)
         {
             case DetectionShape.Box:
-                detectedColliders = Physics.OverlapBox(worldPos, boxSize * 0.5f, transform.rotation);
+                detectedColliders = Physics.OverlapBox(worldPos, boxSize * 0.5f, worldRot);
                 break;
             case DetectionShape.Sphere:
                 detectedColliders = Physics.OverlapSphere(worldPos, sphereRadius);
                 break;
             case DetectionShape.Capsule:
-                Vector3 point1 = worldPos + Vector3.up * Mathf.Max(0, (capsuleHeight * 0.5f) - capsuleRadius);
-                Vector3 point2 = worldPos - Vector3.up * Mathf.Max(0, (capsuleHeight * 0.5f) - capsuleRadius);
+                Vector3 point1 = worldPos + pivot.up * Mathf.Max(0, (capsuleHeight * 0.5f) - capsuleRadius);
+                Vector3 point2 = worldPos - pivot.up * Mathf.Max(0, (capsuleHeight * 0.5f) - capsuleRadius);
                 detectedColliders = Physics.OverlapCapsule(point1, point2, capsuleRadius);
                 break;
             case DetectionShape.Mesh:
-                detectedColliders = new Collider[0]; // Mesh Detection ชั่วคราว
+                detectedColliders = new Collider[0];
                 break;
         }
 
@@ -97,8 +101,10 @@ public class PlatformObj : MonoBehaviour
 
     private void OnDrawGizmos()
     {
+        if (pivot == null) pivot = transform;
+
         Gizmos.color = gizmoColor;
-        Matrix4x4 rotationMatrix = Matrix4x4.TRS(transform.position, transform.rotation, Vector3.one);
+        Matrix4x4 rotationMatrix = Matrix4x4.TRS(pivot.position, pivot.rotation, Vector3.one);
         Gizmos.matrix = rotationMatrix;
 
         switch (detectionShape)

@@ -27,7 +27,7 @@ public class Ability_Freeeze : MonoBehaviour
     [SerializeField] private string freezeLayerName = "FreezeAbility"; 
     [SerializeField] private float freezeLayerLerpSpeed = 5f;
     private int freezeLayerIndex;
-private float targetFreezeWeight = 0f;
+    private float targetFreezeWeight = 0f;
     private Cinemachine3rdPersonFollow thirdPersonFollow;
     private Vector3 originalShoulderOffset;
     private bool isAiming = false;

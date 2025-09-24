@@ -13,6 +13,7 @@ public abstract class FreezeAble : MonoBehaviour
     {
         instancedMaterial = new Material(highlighMaterial);
         GetComponent<Renderer>().material = instancedMaterial;
+        ToggleHighlight(instancedMaterial, false);
     }
 
     /// <summary>

@@ -22,10 +22,6 @@ public class SwapPlayer : MonoBehaviour
     [SerializeField] private PlayerInput input_Player2;
     [SerializeField] private CinemachineVirtualCamera camera_Player2;
 
-
-    [Header("UI")]
-    [SerializeField] private TMP_Text textStatusText;
-
     private void Start()
     {
         StartCoroutine(StartGame());
@@ -64,7 +60,6 @@ public class SwapPlayer : MonoBehaviour
             camera_Player1.gameObject.SetActive(true);
 
             currentPlayerControl = Player.Player1;
-            textStatusText.text = "[Tab] : Player 1";
         }
         else if (player == Player.Player2)
         {
@@ -76,7 +71,6 @@ public class SwapPlayer : MonoBehaviour
             camera_Player2.gameObject.SetActive(true);
 
             currentPlayerControl = Player.Player2;
-            textStatusText.text = "[Tab] : Player 2";
         }
     }
 }

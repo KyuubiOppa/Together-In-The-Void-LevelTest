@@ -1,10 +1,11 @@
 using Cinemachine;
 using UnityEngine;
+using Unity.Netcode;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
 #endif
 
-public class Ability_Fix : MonoBehaviour
+public class Ability_Fix : NetworkBehaviour
 {
     [Header("Debug")]
     [SerializeField] private FixAble found_FixAbleObj; // FixAble ที่เจอ
@@ -61,11 +62,15 @@ public class Ability_Fix : MonoBehaviour
         if (playerCamera == null)
             playerCamera = Camera.main;
             
-        fixLayerIndex = animator.GetLayerIndex(fixLayerName);
+        if (animator != null)
+            fixLayerIndex = animator.GetLayerIndex(fixLayerName);
     }
 
     void Update()
     {
+        // เฉพาะ owner เท่านั้นที่จะควบคุม input
+        if (!IsOwner) return;
+        
         HandleAiming();
         UpdateAimTarget();
 
@@ -81,29 +86,58 @@ public class Ability_Fix : MonoBehaviour
     /// <summary>
     /// แช่/หยุดแช่ 
     /// </summary>
-    public void FireFreeze()
+    public void FireFix()
     {
-        if (found_FixAbleObj != null && isAiming)
+        if (found_FixAbleObj != null && isAiming && IsOwner)
         {
+            // ส่ง RPC ไปยัง server เพื่อให้ทุกคนเห็น
+            ulong fixAbleNetworkId = found_FixAbleObj.GetComponent<NetworkObject>().NetworkObjectId;
+            bool shouldFix = found_FixAbleObj.fixAbleState == FixAbleState.Break;
+            
+            RequestFixActionServerRpc(fixAbleNetworkId, shouldFix);
+            
+            // เรียก StartMagic ในตัวเองทันที (สำหรับ local player)
             StartMagic();
-            // ตรวจสอบสถานะปัจจุบันและสลับ
-            if (found_FixAbleObj.fixAbleState == FixAbleState.Break)
+        }
+    }
+    
+    [ServerRpc(RequireOwnership = true)]
+    void RequestFixActionServerRpc(ulong fixAbleNetworkId, bool shouldFix)
+    {
+        // Server ประมวลผลและส่งต่อให้ทุก client
+        ExecuteFixActionClientRpc(fixAbleNetworkId, shouldFix);
+    }
+    
+    [ClientRpc]
+    void ExecuteFixActionClientRpc(ulong fixAbleNetworkId, bool shouldFix)
+    {
+        // หา FixAble object จาก NetworkObjectId
+        if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(fixAbleNetworkId, out NetworkObject networkObj))
+        {
+            FixAble fixAbleObj = networkObj.GetComponent<FixAble>();
+            if (fixAbleObj != null)
             {
-                found_FixAbleObj.OnFix();
-                found_FixAbleObj.fixAbleState = FixAbleState.Fixing;
-            }
-            else if (found_FixAbleObj.fixAbleState == FixAbleState.Fixing)
-            {
-                found_FixAbleObj.StopFix();
-                found_FixAbleObj.fixAbleState = FixAbleState.Break;
+                if (shouldFix)
+                {
+                    fixAbleObj.OnFix();
+                    fixAbleObj.fixAbleState = FixAbleState.Fixing;
+                }
+                else
+                {
+                    fixAbleObj.StopFix();
+                    fixAbleObj.fixAbleState = FixAbleState.Break;
+                }
             }
         }
     }
     
     void StartMagic()
     {
-        animator.SetLayerWeight(fixLayerIndex, 1f);
-        animator.SetTrigger("Fix");
+        if (animator != null && fixLayerIndex >= 0)
+        {
+            animator.SetLayerWeight(fixLayerIndex, 1f);
+            animator.SetTrigger("Fix");
+        }
     }
 #endregion
 
@@ -216,30 +250,35 @@ public class Ability_Fix : MonoBehaviour
     }
 #endregion
     
-    void OnEnable()
+    public override void OnNetworkSpawn()
     {
+        base.OnNetworkSpawn();
+        
 #if ENABLE_INPUT_SYSTEM
-        if (fireAction != null)
+        // เฉพาะ owner เท่านั้นที่จะลง subscribe input events
+        if (IsOwner && fireAction != null)
         {
             fireAction.performed += OnFirePerformed;
         }
 #endif
     }
     
-    void OnDisable()
+    public override void OnNetworkDespawn()
     {
 #if ENABLE_INPUT_SYSTEM
-        if (fireAction != null)
+        if (IsOwner && fireAction != null)
         {
             fireAction.performed -= OnFirePerformed;
         }
 #endif
+        
+        base.OnNetworkDespawn();
     }
     
 #if ENABLE_INPUT_SYSTEM
     void OnFirePerformed(InputAction.CallbackContext context)
     {
-        FireFreeze();
+        FireFix();
     }
 #endif
 }
